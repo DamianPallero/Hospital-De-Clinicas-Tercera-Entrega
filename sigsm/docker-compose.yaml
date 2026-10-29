@@ -1,0 +1,41 @@
+services:
+  web:
+    build: .
+    container_name: sigsm_web
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html/sigsm
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DB_HOST=db
+      - DB_NAME=sigsm
+      - DB_USER=sigsm_user
+      - DB_PASS=sigsm_secure_password
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: sigsm_db
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secure_password
+      MYSQL_DATABASE: sigsm
+      MYSQL_USER: sigsm_user
+      MYSQL_PASSWORD: sigsm_secure_password
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - db_data:/var/lib/mysql
+    restart: unless-stopped
+    command: --default-authentication-plugin=caching_sha2_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:
