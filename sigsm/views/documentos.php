@@ -73,7 +73,7 @@ $nombreUsuario = $_SESSION['user_name'] ?? 'Usuario';
             <a href="../../index.php" class="btn text-dark btn-sm btn-outline-light btn-info d-inline-flex align-items-center">
                 Volver al portal
             </a>
-            <a href="logout.php" class="btn btn-sm btn-outline-light btn-danger text-light d-inline-flex align-items-center">
+            <a href="logout.php" class="btn btn-sm btn-outline-light btn-danger text-light d-inline-flex align-items-center justify-content-center">
                 Salir
             </a>
         </div>
@@ -204,18 +204,18 @@ $nombreUsuario = $_SESSION['user_name'] ?? 'Usuario';
                                     <td class="d-none d-lg-table-cell"><span class="badge bg-secondary bg-opacity-10 text-secondary"><?= e($doc['categoria'] ?? 'Sin categoría') ?></span></td>
                                     <td class="text-muted small d-none d-lg-table-cell"><?= e(date('d/m/Y H:i', strtotime($doc['fecha_carga']))) ?></td>
                                     <td class="text-end pe-4">
-                                        <div class="d-flex gap-1 justify-content-end flex-wrap">
-                                            <a href="../ver_documento.php?id=<?= (int)$doc['id_documento'] ?>" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center">Ver</a>
+                                        <div class="table-actions">
+                                            <a href="../ver_documento.php?id=<?= (int)$doc['id_documento'] ?>" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center">Ver</a>
                                             <?php if ($puedeAdministrar): ?>
-                                                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editModal"
-                                                        data-id="<?= (int)$doc['id_documento'] ?>"
-                                                        data-titulo="<?= e($doc['titulo']) ?>"
-                                                        data-categoria="<?= (int)$doc['id_categoria'] ?>">Editar</button>
-                                                <form action="../controllers/DocumentoController.php" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de eliminar este documento?');">
+                                                <button class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center" data-bs-toggle="modal" data-bs-target="#editModal"
+                                                    data-id="<?= (int)$doc['id_documento'] ?>"
+                                                    data-titulo="<?= e($doc['titulo']) ?>"
+                                                    data-categoria="<?= (int)$doc['id_categoria'] ?>">Editar</button>
+                                                <form action="../controllers/DocumentoController.php" method="POST" onsubmit="return confirm('¿Está seguro de eliminar este documento?');">
                                                     <input type="hidden" name="accion" value="eliminar">
                                                     <input type="hidden" name="id_documento" value="<?= (int)$doc['id_documento'] ?>">
                                                     <input type="hidden" name="csrf_token" value="<?= e(generarTokenCSRF()) ?>">
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center">Eliminar</button>
                                                 </form>
                                             <?php endif; ?>
                                         </div>
