@@ -1,0 +1,153 @@
+html {
+    font-size: 16px;
+}
+
+body {
+    font-size: 1rem;
+    line-height: 1.5;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+img,
+svg,
+canvas {
+    max-width: 100%;
+    height: auto;
+}
+
+p,
+li,
+label,
+button,
+input,
+select,
+textarea,
+.badge,
+.small {
+    line-height: 1.5;
+}
+
+.card,
+.alert,
+.modal-content {
+    border-radius: 16px;
+}
+
+.card-body {
+    padding: 1rem;
+}
+
+.card-header {
+    padding: 0.75rem 1rem;
+}
+
+.btn,
+.form-control,
+.form-select,
+.form-check-input,
+textarea,
+select {
+    min-height: 44px;
+}
+
+.btn-sm {
+    min-height: 38px;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.table {
+    min-width: 480px;
+    font-size: 0.92rem;
+}
+
+.table th,
+.table td {
+    padding: 0.75rem 0.5rem;
+    vertical-align: middle;
+    white-space: normal;
+}
+
+@media (max-width: 575.98px) {
+    body {
+        font-size: 0.96rem;
+    }
+
+    .container,
+    .container-fluid,
+    .navbar .container,
+    .navbar .container-fluid {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+
+    .navbar-brand {
+        font-size: 1rem !important;
+    }
+
+    .card-body {
+        padding: 0.9rem;
+    }
+
+    .card-header {
+        padding: 0.75rem 0.9rem;
+    }
+
+    .btn,
+    .btn-sm {
+        width: 100%;
+    }
+
+    .btn-group,
+    .d-flex.gap-2,
+    .module-navbar-actions,
+    .table-actions {
+        width: 100%;
+    }
+
+    .table {
+        min-width: 100%;
+        font-size: 0.8rem;
+    }
+
+    .table th,
+    .table td {
+        padding: 0.6rem 0.4rem;
+    }
+
+    .auth-card {
+        padding: 1.5rem 1rem !important;
+        border-radius: 14px;
+    }
+
+    .brand h1 {
+        font-size: 1.4rem !important;
+    }
+
+    .captcha-box {
+        padding: 1rem !important;
+    }
+
+    .modal-dialog {
+        margin: 0.75rem;
+    }
+}
+
+@media (min-width: 576px) {
+    .btn,
+    .btn-sm {
+        width: auto;
+    }
+}
+
+@media (max-width: 991px) {
+    .flex-grow-1.d-flex.flex-column .card-body {
+        max-height: 40vh;
+    }
+}
