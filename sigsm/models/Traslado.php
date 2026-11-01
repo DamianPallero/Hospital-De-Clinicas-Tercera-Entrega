@@ -73,7 +73,7 @@ class Traslado {
 
     public function crear() {
         $sql = 'INSERT INTO traslado (origen, destino, fecha_hora_salida, estado_traslado, necesita_oxigeno, tipo_aislamiento, requiere_ascensor_escalera, observaciones) 
-                  VALUES (:origen, :destino, :fecha_hora_salida, "Pendiente", :necesita_oxigeno, :tipo_aislamiento, :requiere_ascensor_escalera, :observaciones)';
+                  VALUES (:origen, :destino, NOW(), "Pendiente", :necesita_oxigeno, :tipo_aislamiento, :requiere_ascensor_escalera, :observaciones)';
         $prep = $this->conexion->prepare($sql);
 
         $this->inicio = htmlspecialchars(strip_tags($this->inicio));
@@ -84,7 +84,6 @@ class Traslado {
 
         $prep->bindParam(':origen', $this->inicio);
         $prep->bindParam(':destino', $this->fin);
-        $prep->bindParam(':fecha_hora_salida', $this->horaSale);
         $prep->bindParam(':necesita_oxigeno', $this->oxigeno, PDO::PARAM_INT);
         $prep->bindParam(':tipo_aislamiento', $this->aislamiento);
         $prep->bindParam(':requiere_ascensor_escalera', $this->usaAscensor);
@@ -100,7 +99,12 @@ class Traslado {
         $prep->bindParam(':id_enfermero', $this->enfId, PDO::PARAM_INT);
         $prep->bindParam(':id_vehiculo', $this->vehId, PDO::PARAM_INT);
         $prep->bindParam(':id_traslado', $this->trasId, PDO::PARAM_INT);
-        return $prep->execute();
+
+        $resultado = $prep->execute();
+        if ($resultado && $this->vehId > 0) {
+            $this->actualizarEstadoVehiculo($this->vehId, 'En Traslado');
+        }
+        return $resultado;
     }
 
     public function actualizarEstado($nuevoSit) {
@@ -118,6 +122,40 @@ class Traslado {
         $prep = $this->conexion->prepare($sql);
         $prep->bindParam(':estado', $nuevoSit);
         $prep->bindParam(':id', $this->trasId, PDO::PARAM_INT);
+        $resultado = $prep->execute();
+
+        if ($resultado) {
+            $vehiculoActual = $this->obtenerVehiculoPorTraslado($this->trasId);
+            if ($vehiculoActual !== null && ($nuevoSit === 'Completado' || $nuevoSit === 'Cancelado')) {
+                $this->actualizarEstadoVehiculo($vehiculoActual, 'Disponible');
+            } elseif ($vehiculoActual !== null && ($nuevoSit === 'Asignado' || $nuevoSit === 'En Ruta' || $nuevoSit === 'Pendiente')) {
+                $this->actualizarEstadoVehiculo($vehiculoActual, 'En Traslado');
+            }
+        }
+
+        return $resultado;
+    }
+
+    private function obtenerVehiculoPorTraslado($idTraslado) {
+        $sql = 'SELECT id_vehiculo FROM traslado WHERE id_traslado = :id LIMIT 1';
+        $prep = $this->conexion->prepare($sql);
+        $prep->bindParam(':id', $idTraslado, PDO::PARAM_INT);
+        $prep->execute();
+        $fila = $prep->fetch(PDO::FETCH_ASSOC);
+        return $fila['id_vehiculo'] ?? null;
+    }
+
+    public function crearVehiculo($patente, $tipo, $estado = 'Disponible') {
+        $estadosValidos = ['Disponible', 'En Traslado', 'En Mantenimiento', 'Fuera de Servicio'];
+        if (!in_array($estado, $estadosValidos, true)) {
+            return false;
+        }
+
+        $sql = 'INSERT INTO vehiculo (patente, tipo, estado) VALUES (:patente, :tipo, :estado)';
+        $prep = $this->conexion->prepare($sql);
+        $prep->bindParam(':patente', $patente);
+        $prep->bindParam(':tipo', $tipo);
+        $prep->bindParam(':estado', $estado);
         return $prep->execute();
     }
 
@@ -134,8 +172,27 @@ class Traslado {
     }
 
     public function listarVehiculos() {
-        $prep = $this->conexion->prepare('SELECT id_vehiculo, patente, tipo FROM vehiculo WHERE estado = "Disponible" ORDER BY tipo');
+        $prep = $this->conexion->prepare('SELECT id_vehiculo, patente, tipo, estado FROM vehiculo ORDER BY tipo, patente');
         $prep->execute();
         return $prep->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function listarVehiculosDisponibles() {
+        $prep = $this->conexion->prepare('SELECT id_vehiculo, patente, tipo, estado FROM vehiculo WHERE estado = "Disponible" ORDER BY tipo, patente');
+        $prep->execute();
+        return $prep->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function actualizarEstadoVehiculo($idVehiculo, $nuevoEstado) {
+        $estadosValidos = ['Disponible', 'En Traslado', 'En Mantenimiento', 'Fuera de Servicio'];
+        if (!in_array($nuevoEstado, $estadosValidos, true)) {
+            return false;
+        }
+
+        $sql = 'UPDATE vehiculo SET estado = :estado WHERE id_vehiculo = :id';
+        $prep = $this->conexion->prepare($sql);
+        $prep->bindParam(':estado', $nuevoEstado);
+        $prep->bindParam(':id', $idVehiculo, PDO::PARAM_INT);
+        return $prep->execute();
     }
 }

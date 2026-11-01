@@ -12,6 +12,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $op = $_POST['accion'] ?? '';
 
+if ($op === 'forgot_password' || $op === 'reset_password' || $op === 'login') {
+    if (loginBloqueado()) {
+        $_SESSION['login_error'] = 'Demasiados intentos fallidos. Intente nuevamente en 15 minutos.';
+        header('Location: /sigsm/views/login.php');
+        exit();
+    }
+}
+
 if ($op === 'forgot_password') {
     $correo = trim((string)($_POST['email'] ?? ''));
     if ($correo !== '') {
@@ -22,10 +30,12 @@ if ($op === 'forgot_password') {
             $prep->execute();
             if ($prep->fetch()) {
                 $cod = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+                $codHash = hash('sha256', $cod);
+                $_SESSION['reset_code_visible'] = $cod;
                 $carp = __DIR__ . '/../config/reset_codes/';
                 asegurarCarpetaProtegida($carp);
                 $arch = $carp . md5($correo) . '.txt';
-                file_put_contents($arch, $correo . '|' . $cod . '|' . time());
+                file_put_contents($arch, $correo . '|' . $codHash . '|' . $cod . '|' . time());
             }
         } catch (Exception $err) {
         }
@@ -44,7 +54,8 @@ if ($op === 'reset_password') {
     
     if (file_exists($arch)) {
         $datos = explode('|', file_get_contents($arch));
-        if (count($datos) === 3 && $datos[0] === $correo && $datos[1] === $cod && (time() - (int)$datos[2]) < 900) {
+        $codHash = hash('sha256', $cod);
+        if (count($datos) >= 4 && $datos[0] === $correo && hash_equals((string)$datos[1], $codHash) && (time() - (int)$datos[3]) < 900) {
             $correcto = true;
         }
     }
@@ -61,12 +72,14 @@ if ($op === 'reset_password') {
                 $modUsu->usuId = $cuenta['id_usuario'];
                 $modUsu->cambiarPassword($nuevaClave);
                 @unlink($arch);
+                reiniciarIntentosLogin();
                 header('Location: /sigsm/views/login.php?reset=ok');
                 exit();
             }
         } catch (Exception $err) {
         }
     }
+    registrarFalloLogin();
     header('Location: /sigsm/views/reset_password.php?msg=invalid_code');
     exit();
 }
@@ -109,6 +122,7 @@ try {
     $cuenta = $prep->fetch(PDO::FETCH_ASSOC);
 
     if ($cuenta && !empty($cuenta['password_hash']) && password_verify($claveAcceso, $cuenta['password_hash'])) {
+        reiniciarIntentosLogin();
         iniciarSesionSegura();
         session_regenerate_id(true);
         $_SESSION['authenticated'] = true;
@@ -120,6 +134,7 @@ try {
         header('Location: /sigsm/index.php');
         exit();
     } else {
+        registrarFalloLogin();
         $_SESSION['login_error'] = 'Credenciales inválidas.';
         header('Location: /sigsm/views/login.php');
         exit();

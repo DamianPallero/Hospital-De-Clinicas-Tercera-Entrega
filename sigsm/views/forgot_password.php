@@ -1,7 +1,7 @@
 <?php
-session_start();
 require_once __DIR__ . '/../includes/auth_middleware.php';
 $mensaje = $_GET['msg'] ?? '';
+unset($_SESSION['reset_code_visible']);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -18,7 +18,8 @@ $mensaje = $_GET['msg'] ?? '';
         <h4 class="fw-bold mb-3 text-primary">¿Olvidaste tu contraseña?</h4>
         <?php if ($mensaje === 'requested'): ?>
             <div class="alert alert-info small">
-                Se ha generado un código de restablecimiento. Por favor, <strong>contacte al Administrador del sistema</strong> y proporcione su correo electrónico para que le entregue el código de 6 dígitos.
+                Se ha generado un código de restablecimiento y ya fue enviado a la administración del sistema.
+                <div class="mt-2">Por políticas de seguridad, el código solo puede ser entregado por un administrador autorizado.</div>
             </div>
             <a href="reset_password.php" class="btn btn-primary w-100 d-inline-flex align-items-center justify-content-center">Ya tengo el código, ir a restablecer</a>
         <?php else: ?>

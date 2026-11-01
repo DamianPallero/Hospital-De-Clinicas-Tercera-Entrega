@@ -1,10 +1,92 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+if (!function_exists('esConexionSegura')) {
+    function esConexionSegura(): bool {
+        $protocolo = strtolower($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? $_SERVER['HTTPS'] ?? '');
+        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+        $sslForwarded = !empty($_SERVER['HTTP_X_FORWARDED_SSL']) && strtolower($_SERVER['HTTP_X_FORWARDED_SSL']) === 'on';
+        return $https || $protocolo === 'https' || $sslForwarded || (($_SERVER['SERVER_PORT'] ?? 80) == 443);
+    }
 }
 
-function e($datoV) {
-    return htmlspecialchars($datoV ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+if (!function_exists('e')) {
+    function e($datoV) {
+        return htmlspecialchars($datoV ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+}
+
+if (!function_exists('aplicarHeadersSeguridad')) {
+    function aplicarHeadersSeguridad(): void {
+        if (!headers_sent()) {
+            header('X-Content-Type-Options: nosniff');
+            header('X-Frame-Options: DENY');
+            header('Referrer-Policy: strict-origin-when-cross-origin');
+            header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+            header("Content-Security-Policy: default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';");
+            if (esConexionSegura()) {
+                header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+            }
+        }
+    }
+}
+
+if (!function_exists('forzarHTTPS')) {
+    function forzarHTTPS(): void {
+        if (headers_sent()) {
+            return;
+        }
+
+        $forzar = getenv('APP_FORCE_HTTPS');
+        $forzar = $forzar !== false ? filter_var($forzar, FILTER_VALIDATE_BOOLEAN) : false;
+
+        if (!$forzar) {
+            return;
+        }
+
+        $host = strtolower($_SERVER['HTTP_HOST'] ?? '');
+        if ($host === '' || in_array($host, ['localhost', '127.0.0.1', '[::1]'], true)) {
+            return;
+        }
+
+        if (!esConexionSegura()) {
+            $hostSinPuerto = preg_replace('/:\d+$/', '', $host);
+            $ruta = $_SERVER['REQUEST_URI'] ?? '/';
+            header('Location: https://' . $hostSinPuerto . $ruta, true, 301);
+            exit();
+        }
+    }
+}
+
+if (!function_exists('iniciarSesionSegura')) {
+    function iniciarSesionSegura(): void {
+        if (session_status() === PHP_SESSION_NONE) {
+            ini_set('session.use_strict_mode', '1');
+            ini_set('session.use_only_cookies', '1');
+            ini_set('session.cookie_httponly', '1');
+            ini_set('session.cookie_samesite', 'Lax');
+            ini_set('session.cache_limiter', 'nocache');
+
+            $seguro = esConexionSegura();
+            $optsCookie = session_get_cookie_params();
+            session_set_cookie_params([
+                'lifetime' => 1800,
+                'path' => $optsCookie['path'] ?? '/',
+                'domain' => $optsCookie['domain'] ?? '',
+                'secure' => $seguro,
+                'httponly' => true,
+                'samesite' => 'Lax'
+            ]);
+            session_start();
+        }
+    }
+}
+
+aplicarHeadersSeguridad();
+if (PHP_SAPI !== 'cli' && PHP_SAPI !== 'cli-server') {
+    forzarHTTPS();
+}
+
+if (session_status() === PHP_SESSION_NONE) {
+    iniciarSesionSegura();
 }
 
 function generarTokenCSRF() {
@@ -25,25 +107,27 @@ function obtenerPermisosPorRol($rolNom) {
             'ver_documentos', 'cargar_documentos', 'eliminar_documentos',
             'ver_encuestas', 'gestionar_encuestas', 'ver_respuestas_encuestas',
             'ver_traslados', 'crear_traslado', 'actualizar_estado_traslado', 'asignar_traslado',
+            'ver_vehiculos', 'gestionar_vehiculos',
             'gestionar_usuarios',
             'gestionar_categorias',
         ],
         'Enfermería' => [
             'ver_documentos', 'cargar_documentos',
             'ver_encuestas',
-            'ver_traslados', 'crear_traslado',
+            'ver_traslados', 'crear_traslado', 'ver_vehiculos',
         ],
         'Médico' => [
             'ver_documentos', 'cargar_documentos',
             'ver_encuestas',
-            'ver_traslados', 'crear_traslado',
+            'ver_traslados', 'crear_traslado', 'ver_vehiculos',
         ],
         'IT' => [
             'ver_documentos',
             'ver_encuestas', 'gestionar_encuestas', 'ver_respuestas_encuestas', 'gestionar_categorias',
-            'ver_traslados', 'actualizar_estado_traslado',],
+            'ver_traslados', 'actualizar_estado_traslado', 'ver_vehiculos', 'gestionar_vehiculos',
+        ],
         'Transporte' => [
-            'ver_traslados', 'actualizar_estado_traslado',
+            'ver_traslados', 'actualizar_estado_traslado', 'ver_vehiculos', 'gestionar_vehiculos',
         ],
     ];
     return $mapa[$rolNom] ?? [];
@@ -61,21 +145,54 @@ function obtenerRol() {
     return $_SESSION['role_name'] ?? 'Invitado';
 }
 
-if (!function_exists('iniciarSesionSegura')) {
-    function iniciarSesionSegura(): void {
-        if (session_status() === PHP_SESSION_NONE) {
-            $seguro = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? 80) == 443;
-            $optsCookie = session_get_cookie_params();
-            session_set_cookie_params([
-                'lifetime' => 1800,
-                'path' => $optsCookie['path'] ?? '/',
-                'domain' => $optsCookie['domain'] ?? '',
-                'secure' => $seguro,
-                'httponly' => true,
-                'samesite' => 'Lax'
-            ]);
-            session_start();
+if (!function_exists('obtenerIntentosLogin')) {
+    function obtenerIntentosLogin(): array {
+        $ip = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+        $clave = 'login_attempts_' . $ip;
+        $datos = $_SESSION[$clave] ?? ['count' => 0, 'locked_until' => 0];
+
+        if (!is_array($datos)) {
+            $datos = ['count' => 0, 'locked_until' => 0];
         }
+
+        $ahora = time();
+        if (($datos['locked_until'] ?? 0) > 0 && $datos['locked_until'] <= $ahora) {
+            $datos = ['count' => 0, 'locked_until' => 0];
+            $_SESSION[$clave] = $datos;
+        }
+
+        return $datos;
+    }
+}
+
+if (!function_exists('registrarFalloLogin')) {
+    function registrarFalloLogin(): void {
+        $ip = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+        $clave = 'login_attempts_' . $ip;
+        $datos = obtenerIntentosLogin();
+        $datos['count'] = (int)($datos['count'] ?? 0) + 1;
+
+        if ($datos['count'] >= 5) {
+            $datos['locked_until'] = time() + 900;
+            $datos['count'] = 5;
+        }
+
+        $_SESSION[$clave] = $datos;
+    }
+}
+
+if (!function_exists('loginBloqueado')) {
+    function loginBloqueado(): bool {
+        $datos = obtenerIntentosLogin();
+        return ($datos['locked_until'] ?? 0) > time();
+    }
+}
+
+if (!function_exists('reiniciarIntentosLogin')) {
+    function reiniciarIntentosLogin(): void {
+        $ip = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+        $clave = 'login_attempts_' . $ip;
+        unset($_SESSION[$clave]);
     }
 }
 

@@ -43,11 +43,15 @@ try {
 
     $infoMime = new finfo(FILEINFO_MIME_TYPE);
     $tipoMime = $infoMime->file($rutaFichero);
+    $tituloArchivo = preg_replace('/[\r\n]+/', '', trim((string)$docFila['titulo']));
+    $tituloArchivo = preg_replace('/[<>:"\\\/|?*]/', '', $tituloArchivo);
+    $tituloArchivo = substr($tituloArchivo, 0, 120) ?: 'documento';
 
     header('Content-Type: ' . $tipoMime);
     header('Content-Length: ' . filesize($rutaFichero));
-    header('Content-Disposition: inline; filename="' . addslashes($docFila['titulo']) . '"');
+    header('Content-Disposition: inline; filename="' . $tituloArchivo . '"');
     header('Cache-Control: private, max-age=3600');
+    header('X-Content-Type-Options: nosniff');
     
     readfile($rutaFichero);
     exit;

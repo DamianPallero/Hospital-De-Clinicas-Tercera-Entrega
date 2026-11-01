@@ -60,5 +60,29 @@ if ($op === 'actualizar_estado' && tienePermiso('actualizar_estado_traslado')) {
     }
 }
 
+if ($op === 'crear_vehiculo' && tienePermiso('gestionar_vehiculos')) {
+    $patente = trim($_POST['patente'] ?? '');
+    $tipo = trim($_POST['tipo'] ?? '');
+    $estado = trim($_POST['estado'] ?? 'Disponible');
+
+    if ($patente !== '' && $tipo !== '') {
+        $mensaje = $modTras->crearVehiculo($patente, $tipo, $estado) ? 'ok_vehiculo' : 'error';
+    } else {
+        $mensaje = 'error_validacion';
+    }
+}
+
+if ($op === 'actualizar_estado_vehiculo' && tienePermiso('gestionar_vehiculos')) {
+    $idVehiculo = (int)($_POST['id_vehiculo'] ?? 0);
+    $nuevoEstadoVehiculo = trim($_POST['estado_vehiculo'] ?? '');
+    $estadosValidos = ['Disponible', 'En Traslado', 'En Mantenimiento', 'Fuera de Servicio'];
+
+    if ($idVehiculo > 0 && in_array($nuevoEstadoVehiculo, $estadosValidos, true)) {
+        $mensaje = $modTras->actualizarEstadoVehiculo($idVehiculo, $nuevoEstadoVehiculo) ? 'ok_vehiculo' : 'error';
+    } else {
+        $mensaje = 'error_validacion';
+    }
+}
+
 header('Location: /sigsm/views/traslados.php?msg=' . $mensaje);
 exit();

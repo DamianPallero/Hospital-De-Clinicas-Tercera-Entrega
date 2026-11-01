@@ -7,6 +7,7 @@ class Database {
     public $conexion;
 
     public function __construct() {
+        date_default_timezone_set('America/Argentina/Buenos_Aires');
         $this->servidor = getenv('DB_HOST') ?: 'db';
         $this->nombreBd = getenv('DB_NAME') ?: 'sigsm';
         $this->nomCuenta = getenv('DB_USER') ?: 'sigsm_user';
@@ -27,6 +28,7 @@ class Database {
             
             $this->conexion->exec("SET NAMES utf8mb4");
             $this->conexion->exec("SET CHARACTER SET utf8mb4");
+            $this->conexion->exec("SET time_zone = 'America/Argentina/Buenos_Aires'");
         } catch(PDOException $excepcion) {
             die("Error de conexión a la base de datos.");
         }

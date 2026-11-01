@@ -1,19 +1,23 @@
 services:
   web:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: sigsm_web
     ports:
-      - "8080:80"
+      - "0.0.0.0:8080:80"
     volumes:
       - ./:/var/www/html/sigsm
     depends_on:
       db:
         condition: service_healthy
     environment:
-      - DB_HOST=db
-      - DB_NAME=sigsm
-      - DB_USER=sigsm_user
-      - DB_PASS=sigsm_secure_password
+      APP_ENV: development
+      APP_FORCE_HTTPS: "false"
+      DB_HOST: db
+      DB_NAME: sigsm
+      DB_USER: sigsm_user
+      DB_PASS: sigsm_secure_password
     restart: unless-stopped
 
   db:
@@ -35,7 +39,7 @@ services:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
 volumes:
   db_data:

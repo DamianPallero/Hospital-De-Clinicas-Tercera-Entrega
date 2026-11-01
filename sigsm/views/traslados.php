@@ -20,11 +20,14 @@ $tras = $modTras->listarTodos();
 $porHacer = $modTras->listarPendientes();
 $choferes = $modTras->listarConductores();
 $enfs = $modTras->listarEnfermeros();
-$autos = $modTras->listarVehiculos();
+$autos = $modTras->listarVehiculosDisponibles();
+$vehiculosEstado = $modTras->listarVehiculos();
 
 $permCrear = tienePermiso('crear_traslado');
 $permAsignar = tienePermiso('asignar_traslado');
 $permCambiarSit = tienePermiso('actualizar_estado_traslado');
+$permVerVehiculos = tienePermiso('ver_vehiculos');
+$permGestionVehiculos = tienePermiso('gestionar_vehiculos');
 
 $mensaje = $_GET['msg'] ?? '';
 $claseAviso = '';
@@ -34,6 +37,7 @@ switch ($mensaje) {
     case 'ok_crear': $claseAviso = 'success'; $textoAviso = 'Solicitud de traslado creada correctamente.'; break;
     case 'ok_asignar': $claseAviso = 'success'; $textoAviso = 'Recursos asignados correctamente.'; break;
     case 'ok_estado': $claseAviso = 'success'; $textoAviso = 'Estado del traslado actualizado.'; break;
+    case 'ok_vehiculo': $claseAviso = 'success'; $textoAviso = 'Estado del vehículo actualizado correctamente.'; break;
     case 'error_validacion': $claseAviso = 'danger'; $textoAviso = 'Faltan datos obligatorios.'; break;
     case 'error_csrf': $claseAviso = 'danger'; $textoAviso = 'Error de seguridad. Intente nuevamente.'; break;
     case 'error': $claseAviso = 'danger'; $textoAviso = 'Ocurrió un error al procesar la solicitud.'; break;
@@ -45,7 +49,11 @@ function badgeEstado($sit) {
         'Asignado' => 'info',
         'En Ruta' => 'primary',
         'Completado' => 'success',
-        'Cancelado' => 'secondary'
+        'Cancelado' => 'secondary',
+        'Disponible' => 'success',
+        'En Traslado' => 'primary',
+        'En Mantenimiento' => 'warning',
+        'Fuera de Servicio' => 'secondary'
     ];
     $tono = $mapa[$sit] ?? 'secondary';
     return '<span class="badge bg-' . $tono . ' bg-opacity-10 text-' . $tono . ' border border-' . $tono . ' border-opacity-25">' . htmlspecialchars($sit) . '</span>';
@@ -64,7 +72,7 @@ $totalListos = count(array_filter($tras, fn($elemT) => $elemT['estado_traslado']
     <meta name="color-scheme" content="light dark">
     <title>Gestión de Traslados - S.I.G.S.M.</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/mobile.css">
+    <link rel="stylesheet" href="../assets/css/mobile.css?v=20261101-1">
     <style>
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -206,7 +214,98 @@ $totalListos = count(array_filter($tras, fn($elemT) => $elemT['estado_traslado']
             </div>
         </div>
     </div>
+
+    <?php if ($permVerVehiculos): ?>
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-header bg-white border-bottom fw-bold d-flex justify-content-between align-items-center">
+            <span>Estado de la flota</span>
+            <?php if ($permGestionVehiculos): ?>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoVehiculoModal">+ Nuevo vehículo</button>
+            <?php endif; ?>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 table-sm">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Patente</th>
+                            <th>Tipo</th>
+                            <th>Estado</th>
+                            <?php if ($permGestionVehiculos): ?>
+                                <th class="text-end pe-4">Actualizar</th>
+                            <?php endif; ?>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($vehiculosEstado as $veh): ?>
+                            <tr>
+                                <td class="ps-4 fw-medium"><?= e($veh['patente']) ?></td>
+                                <td><?= e($veh['tipo']) ?></td>
+                                <td><?= badgeEstado($veh['estado']) ?></td>
+                                <?php if ($permGestionVehiculos): ?>
+                                    <td class="text-end pe-4">
+                                        <form action="../controllers/TrasladoController.php" method="POST" class="d-flex justify-content-end align-items-center gap-2">
+                                            <input type="hidden" name="accion" value="actualizar_estado_vehiculo">
+                                            <input type="hidden" name="id_vehiculo" value="<?= (int)$veh['id_vehiculo'] ?>">
+                                            <input type="hidden" name="csrf_token" value="<?= e(generarTokenCSRF()) ?>">
+                                            <select class="form-select form-select-sm" name="estado_vehiculo" aria-label="Estado del vehículo">
+                                                <?php foreach (['Disponible', 'En Traslado', 'En Mantenimiento', 'Fuera de Servicio'] as $estadoOpt): ?>
+                                                    <option value="<?= e($estadoOpt) ?>" <?= $veh['estado'] === $estadoOpt ? 'selected' : '' ?>><?= e($estadoOpt) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
+                                        </form>
+                                    </td>
+                                <?php endif; ?>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 </main>
+
+<?php if ($permGestionVehiculos): ?>
+<div class="modal fade modal-fullscreen-sm-down" id="nuevoVehiculoModal" tabindex="-1" aria-labelledby="nuevoVehiculoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form action="../controllers/TrasladoController.php" method="POST">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold" id="nuevoVehiculoModalLabel">Nuevo Vehículo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="accion" value="crear_vehiculo">
+                    <input type="hidden" name="csrf_token" value="<?= e(generarTokenCSRF()) ?>">
+                    <div class="mb-3">
+                        <label for="nuevo_patente" class="form-label small fw-bold">Patente</label>
+                        <input type="text" class="form-control" id="nuevo_patente" name="patente" required placeholder="Ej: ABC123">
+                    </div>
+                    <div class="mb-3">
+                        <label for="nuevo_tipo" class="form-label small fw-bold">Tipo</label>
+                        <input type="text" class="form-control" id="nuevo_tipo" name="tipo" required placeholder="Ej: Ambulancia Básica">
+                    </div>
+                    <div class="mb-3">
+                        <label for="nuevo_estado_vehiculo" class="form-label small fw-bold">Estado inicial</label>
+                        <select class="form-select" id="nuevo_estado_vehiculo" name="estado">
+                            <option value="Disponible">Disponible</option>
+                            <option value="En Traslado">En Traslado</option>
+                            <option value="En Mantenimiento">En Mantenimiento</option>
+                            <option value="Fuera de Servicio">Fuera de Servicio</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4">Guardar vehículo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php if ($permCrear): ?>
 <div class="modal fade modal-fullscreen-sm-down" id="crearModal" tabindex="-1" aria-labelledby="crearModalLabel" aria-hidden="true">
@@ -250,7 +349,7 @@ $totalListos = count(array_filter($tras, fn($elemT) => $elemT['estado_traslado']
                         </div>
                         <div class="col-12">
                             <div class="form-check mt-1">
-                                <input class="form-check-input shadow-none" type="checkbox" id="oxigeno" name="necesita_oxigeno" value="1">
+                                <input class="form-check-input shadow-none" type="checkbox" id="oxigeno" name="necesita_oxigeno" value="1" style="width:1rem; height:1rem; min-width:1rem; min-height:1rem; max-width:1rem; max-height:1rem; margin-top:0; margin-right:0.5rem; border-radius:0.25rem; appearance:auto; -webkit-appearance:auto;">
                                 <label class="form-check-label fw-bold small" for="oxigeno">Requiere soporte de oxígeno</label>
                             </div>
                         </div>

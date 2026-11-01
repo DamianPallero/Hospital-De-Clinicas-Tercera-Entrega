@@ -65,37 +65,55 @@ $nomUsu = $_SESSION['user_name'] ?? 'Usuario';
         .mobile-compact-table td {
             overflow-wrap: anywhere;
         }
+        .mobile-compact-table th:last-child,
+        .mobile-compact-table td:last-child {
+            width: 220px;
+            min-width: 220px;
+        }
         .table-actions {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
+            justify-content: flex-end;
+            align-items: center;
+            flex-wrap: nowrap;
             gap: .35rem;
+            min-width: 190px;
         }
         .table-actions form {
-            display: flex !important;
+            display: inline-flex !important;
+            flex: 0 0 auto;
+        }
+        .table-actions > * {
+            flex: 0 0 auto;
         }
         .table-actions .btn {
-            width: 100%;
+            width: auto;
             margin-right: 0 !important;
             padding: .25rem .35rem;
             font-size: .75rem;
+            white-space: nowrap;
         }
         .table-actions form .btn {
-            width: 100%;
+            width: auto;
         }
-        @media (min-width: 576px) {
+        @media (max-width: 575.98px) {
+            .mobile-compact-table th:last-child,
+            .mobile-compact-table td:last-child {
+                width: auto;
+                min-width: 0;
+            }
             .table-actions {
-                flex-direction: row;
-                justify-content: flex-end;
+                flex-direction: column;
+                align-items: stretch;
                 flex-wrap: wrap;
+                min-width: 0;
             }
             .table-actions form {
-                display: inline-flex !important;
+                display: flex !important;
             }
-            .table-actions .btn {
-                width: auto;
-            }
+            .table-actions .btn,
             .table-actions form .btn {
-                width: auto;
+                width: 100%;
             }
         }
     </style>
@@ -126,10 +144,10 @@ $nomUsu = $_SESSION['user_name'] ?? 'Usuario';
         if (is_dir($dirReset)) {
             foreach (glob($dirReset . '*.txt') as $fichero) {
                 $datos = explode('|', file_get_contents($fichero));
-                if (count($datos) === 3) {
-                    $expira = 900 - (time() - (int)$datos[2]);
+                if (count($datos) >= 4) {
+                    $expira = 900 - (time() - (int)$datos[3]);
                     if ($expira > 0) {
-                        $resetsList[] = ['email' => $datos[0], 'code' => $datos[1], 'expires' => floor($expira / 60)];
+                        $resetsList[] = ['email' => $datos[0], 'code' => $datos[2], 'expires' => floor($expira / 60)];
                     } else {
                         @unlink($fichero);
                     }

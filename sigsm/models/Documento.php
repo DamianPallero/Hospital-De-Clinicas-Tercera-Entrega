@@ -71,7 +71,7 @@ class Documento {
     }
 
     public function crear() {
-        $sql = 'INSERT INTO documento (id_categoria, id_usuario_carga, titulo, url_archivo) VALUES (:id_categoria, :id_usuario_carga, :titulo, :url_archivo)';
+        $sql = 'INSERT INTO documento (id_categoria, id_usuario_carga, titulo, url_archivo, fecha_carga) VALUES (:id_categoria, :id_usuario_carga, :titulo, :url_archivo, NOW())';
         $prep = $this->conexion->prepare($sql);
         $this->tituloDoc = htmlspecialchars(strip_tags($this->tituloDoc));
         $this->urlArchivo = preg_replace('/[^a-f0-9]/i', '', $this->urlArchivo);
