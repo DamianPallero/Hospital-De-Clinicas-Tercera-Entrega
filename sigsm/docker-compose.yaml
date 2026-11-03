@@ -5,7 +5,8 @@ services:
       dockerfile: Dockerfile
     container_name: sigsm_web
     ports:
-      - "0.0.0.0:8080:80"
+      - "0.0.0.0:80:80"
+      - "0.0.0.0:443:443"
     volumes:
       - ./:/var/www/html/sigsm
     depends_on:

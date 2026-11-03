@@ -43,12 +43,13 @@ if (!function_exists('forzarHTTPS')) {
         }
 
         $host = strtolower($_SERVER['HTTP_HOST'] ?? '');
-        if ($host === '' || in_array($host, ['localhost', '127.0.0.1', '[::1]'], true)) {
+        $hostSinPuerto = preg_replace('/:\d+$/', '', $host);
+
+        if ($host === '' || in_array($host, ['localhost', '127.0.0.1', '[::1]'], true) || filter_var($hostSinPuerto, FILTER_VALIDATE_IP) !== false) {
             return;
         }
 
         if (!esConexionSegura()) {
-            $hostSinPuerto = preg_replace('/:\d+$/', '', $host);
             $ruta = $_SERVER['REQUEST_URI'] ?? '/';
             header('Location: https://' . $hostSinPuerto . $ruta, true, 301);
             exit();

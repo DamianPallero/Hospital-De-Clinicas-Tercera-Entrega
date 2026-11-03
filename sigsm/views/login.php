@@ -218,6 +218,7 @@ $pregCaptcha = Captcha::generar();
         <?php endif; ?>
         
         <form id="loginForm" action="/sigsm/controllers/AuthController.php" method="POST" novalidate>
+            <input type="hidden" name="accion" value="login">
             <input type="hidden" name="csrf_token" value="<?= e(generarTokenCSRF()) ?>">
             
             <div class="mb-3">

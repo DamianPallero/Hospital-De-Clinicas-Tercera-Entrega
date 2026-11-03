@@ -28,7 +28,7 @@ $nomUsu = $_SESSION['user_name'] ?? 'Usuario';
 $archivoVer = __DIR__ . '/config/portal_version.txt';
 $ver = file_exists($archivoVer) ? (int)file_get_contents($archivoVer) : 1;
 $servidor = $_SERVER['HTTP_HOST'] ?? 'localhost';
-$urlEncuesta = "http://" . $servidor . "/sigsm/encuestas/portal.php?v=" . $ver;
+$urlEncuesta = "https://" . $servidor . "/sigsm/encuestas/portal.php?v=" . $ver;
 ?>
 <!DOCTYPE html>
 <html lang="es">

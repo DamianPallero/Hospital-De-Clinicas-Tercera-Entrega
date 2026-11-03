@@ -74,7 +74,7 @@ $nomUsu = $_SESSION['user_name'] ?? 'Usuario';
                 <div class="alert alert-warning shadow-sm mb-3 flex-shrink-0">
                     <strong>Atención:</strong> Generaste este QR accediendo desde <code>localhost</code>. Tu teléfono no podrá abrir este enlace porque "localhost" en tu teléfono se refiere al propio teléfono. 
                     <br><br>
-                    Para que funcione, debes acceder a esta página usando la IP local de tu computadora (ej. <code>http://192.168.1.50:8080/sigsm/views/qr_documentos.php</code>) y generar el QR nuevamente.
+                    Para que funcione, debes acceder a esta página usando la IP local de tu computadora (ej. <code>https://192.168.1.50/sigsm/views/qr_documentos.php</code>) y generar el QR nuevamente.
                 </div>
             <?php endif; ?>
             

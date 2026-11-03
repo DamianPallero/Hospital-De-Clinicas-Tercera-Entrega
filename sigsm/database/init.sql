@@ -49,11 +49,11 @@ INSERT INTO rol (nombre_rol) VALUES
 ('Médico');
 
 INSERT INTO usuario (id_rol, nombre, apellido, email, password_hash) VALUES
-('1', 'Carmen', 'La Torre', 'carmenlatorre@gmail.com', '$2a$12$Pl9n0mNPtdPKewf.1pTFsunCFY5TIi4RmN8LvfylDCbxJtwqVkFei'),
-('2','Xia', 'Wú', 'moonrabbit@gmail.com', '$2a$12$Pl9n0mNPtdPKewf.1pTFsunCFY5TIi4RmN8LvfylDCbxJtwqVkFei'),
-('3', 'Sasha', 'Kiselova', 'sashakiselova@gmail.com', '$2a$12$Pl9n0mNPtdPKewf.1pTFsunCFY5TIi4RmN8LvfylDCbxJtwqVkFei'),
-('5', 'Cecilia', 'Himmel', 'ceciliahimmel@gmail.com', '$2a$12$Pl9n0mNPtdPKewf.1pTFsunCFY5TIi4RmN8LvfylDCbxJtwqVkFei'),
-('4', 'Alyssa', 'Ingram', 'ingramalyssa@gmail.com', '$2a$12$Pl9n0mNPtdPKewf.1pTFsunCFY5TIi4RmN8LvfylDCbxJtwqVkFei');
+('1', 'Carmen', 'La Torre', 'carmenlatorre@gmail.com', '$2y$12$V2.BNjzzW2XPpHVJi8R5.O0l.gmKW9WMC5Xuxb2eqvg6tMdr7ySFS'),
+('2','Xia', 'Wú', 'moonrabbit@gmail.com', '$2y$12$V2.BNjzzW2XPpHVJi8R5.O0l.gmKW9WMC5Xuxb2eqvg6tMdr7ySFS'),
+('3', 'Sasha', 'Kiselova', 'sashakiselova@gmail.com', '$2y$12$V2.BNjzzW2XPpHVJi8R5.O0l.gmKW9WMC5Xuxb2eqvg6tMdr7ySFS'),
+('5', 'Cecilia', 'Himmel', 'ceciliahimmel@gmail.com', '$2y$12$V2.BNjzzW2XPpHVJi8R5.O0l.gmKW9WMC5Xuxb2eqvg6tMdr7ySFS'),
+('4', 'Alyssa', 'Ingram', 'ingramalyssa@gmail.com', '$2y$12$V2.BNjzzW2XPpHVJi8R5.O0l.gmKW9WMC5Xuxb2eqvg6tMdr7ySFS');
 
 INSERT INTO categoria_documento (nombre, descripcion) VALUES
 ('Historial', 'Contiene los registros del paciente'),
