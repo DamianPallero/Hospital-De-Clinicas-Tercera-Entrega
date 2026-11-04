@@ -15,12 +15,15 @@ if (!tienePermiso('ver_documentos')) {
 $baseObj = new Database();
 $bd = $baseObj->getConnection();
 $modDoc = new Documento($bd);
-$docs = $modDoc->listar();
+$mensaje = $_GET['msg'] ?? '';
+$busqueda = trim((string)($_GET['buscar'] ?? ''));
+$filtroEstado = 'activos';
+$filtroCategoria = (int)($_GET['categoria'] ?? 0);
+$docs = $modDoc->listar($busqueda, $filtroEstado, $filtroCategoria, false);
 $cats = $modDoc->listarCategorias();
 $permCargar = tienePermiso('cargar_documentos');
 $permAdmin = tienePermiso('eliminar_documentos');
 $permCat = tienePermiso('gestionar_categorias');
-$mensaje = $_GET['msg'] ?? '';
 $rolNom = obtenerRol();
 $nomUsu = $_SESSION['user_name'] ?? 'Usuario';
 ?>
@@ -92,12 +95,13 @@ $nomUsu = $_SESSION['user_name'] ?? 'Usuario';
     </nav>
 
     <main class="flex-grow-1 d-flex flex-column p-3 p-lg-4">
-        <?php if (in_array($mensaje, ['ok', 'eliminado', 'categoria_creada', 'categoria_editada', 'categoria_eliminada'])): ?>
+        <?php if (in_array($mensaje, ['ok', 'eliminado', 'restaurado', 'categoria_creada', 'categoria_editada', 'categoria_eliminada'])): ?>
             <div class="alert alert-success alert-dismissible fade show shadow-sm py-2 mb-3 flex-shrink-0">
                 <?php
                 $avisosExito = [
                     'ok' => 'Documento cargado correctamente.',
-                    'eliminado' => 'Documento eliminado correctamente.',
+                    'eliminado' => 'Documento marcado como eliminado correctamente.',
+                    'restaurado' => 'Documento restaurado correctamente.',
                     'categoria_creada' => 'Categoría creada correctamente.',
                     'categoria_editada' => 'Categoría actualizada correctamente.',
                     'categoria_eliminada' => 'Categoría eliminada correctamente.'
@@ -180,13 +184,33 @@ $nomUsu = $_SESSION['user_name'] ?? 'Usuario';
             </div>
         <?php endif; ?>
 
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-shrink-0 gap-3 flex-wrap">
             <h4 class="fw-bold mb-0">Documentos Registrados</h4>
             <?php if ($permCargar): ?>
                 <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#crearModal">
                     + Cargar Documento
                 </button>
             <?php endif; ?>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-3 flex-shrink-0">
+            <div class="card-body">
+                <form id="documentFiltersForm" method="GET" class="row g-2 align-items-end" action="documentos.php">
+                    <div class="col-md-5 col-lg-6">
+                        <label for="buscar_documento" class="form-label small fw-bold mb-1">Buscar documentos</label>
+                        <input type="search" id="buscar_documento" name="buscar" class="form-control" value="<?= e($busqueda) ?>" placeholder="Título, categoría o ID" autocomplete="off">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="categoria_documento" class="form-label small fw-bold mb-1">Categoría</label>
+                        <select id="categoria_documento" name="categoria" class="form-select">
+                            <option value="0" <?= $filtroCategoria === 0 ? 'selected' : '' ?>>Todas</option>
+                            <?php foreach ($cats as $catFila): ?>
+                                <option value="<?= (int)$catFila['id_categoria'] ?>" <?= $filtroCategoria === (int)$catFila['id_categoria'] ? 'selected' : '' ?>><?= e($catFila['nombre']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </form>
+            </div>
         </div>
 
         <div class="card border-0 shadow-sm flex-grow-1 d-flex flex-column overflow-hidden">
@@ -204,10 +228,17 @@ $nomUsu = $_SESSION['user_name'] ?? 'Usuario';
                         </thead>
                         <tbody>
                             <?php if (empty($docs)): ?>
-                                <tr><td colspan="5" class="text-center py-5 text-muted">No hay documentos registrados.</td></tr>
+                                <tr id="documentEmptyState"><td colspan="5" class="text-center py-5 text-muted">No hay documentos que coincidan con la búsqueda y el filtro seleccionados.</td></tr>
                             <?php else: ?>
                                 <?php foreach ($docs as $docFila): ?>
-                                    <tr>
+                                    <?php $estaEliminado = (int)($docFila['eliminado'] ?? 0) === 1; ?>
+                                    <tr class="<?= $estaEliminado ? 'table-secondary' : '' ?>"
+                                        data-document-row
+                                        data-id="<?= (int)$docFila['id_documento'] ?>"
+                                        data-titulo="<?= e($docFila['titulo']) ?>"
+                                        data-categoria="<?= e($docFila['categoria'] ?? 'Sin categoría') ?>"
+                                        data-categoria-id="<?= (int)($docFila['id_categoria'] ?? 0) ?>"
+                                        data-eliminado="<?= $estaEliminado ? '1' : '0' ?>">
                                         <td class="ps-4 fw-medium d-none d-md-table-cell text-muted">#<?= (int)$docFila['id_documento'] ?></td>
                                         <td>
                                             <div class="fw-bold small"><?= e($docFila['titulo']) ?></div>
@@ -218,16 +249,25 @@ $nomUsu = $_SESSION['user_name'] ?? 'Usuario';
                                             <div class="table-actions d-flex flex-column flex-md-row justify-content-end gap-2">
                                                 <a href="../ver_documento.php?id=<?= (int)$docFila['id_documento'] ?>" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center">Ver</a>
                                                 <?php if ($permAdmin): ?>
-                                                    <button class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center" data-bs-toggle="modal" data-bs-target="#editModal"
-                                                        data-id="<?= (int)$docFila['id_documento'] ?>"
-                                                        data-titulo="<?= e($docFila['titulo']) ?>"
-                                                        data-categoria="<?= (int)$docFila['id_categoria'] ?>">Editar</button>
-                                                    <form action="../controllers/DocumentoController.php" method="POST" onsubmit="return confirm('¿Está seguro de eliminar este documento?');">
-                                                        <input type="hidden" name="accion" value="eliminar">
-                                                        <input type="hidden" name="id_documento" value="<?= (int)$docFila['id_documento'] ?>">
-                                                        <input type="hidden" name="csrf_token" value="<?= e(generarTokenCSRF()) ?>">
-                                                        <button type="submit" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center">Eliminar</button>
-                                                    </form>
+                                                    <?php if (!$estaEliminado): ?>
+                                                        <button class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center" data-bs-toggle="modal" data-bs-target="#editModal"
+                                                            data-id="<?= (int)$docFila['id_documento'] ?>"
+                                                            data-titulo="<?= e($docFila['titulo']) ?>"
+                                                            data-categoria="<?= (int)$docFila['id_categoria'] ?>">Editar</button>
+                                                        <form action="../controllers/DocumentoController.php" method="POST" onsubmit="return confirm('¿Está seguro de eliminar este documento?');">
+                                                            <input type="hidden" name="accion" value="eliminar">
+                                                            <input type="hidden" name="id_documento" value="<?= (int)$docFila['id_documento'] ?>">
+                                                            <input type="hidden" name="csrf_token" value="<?= e(generarTokenCSRF()) ?>">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center">Eliminar</button>
+                                                        </form>
+                                                    <?php else: ?>
+                                                        <form action="../controllers/DocumentoController.php" method="POST" onsubmit="return confirm('¿Desea restaurar este documento?');">
+                                                            <input type="hidden" name="accion" value="restaurar">
+                                                            <input type="hidden" name="id_documento" value="<?= (int)$docFila['id_documento'] ?>">
+                                                            <input type="hidden" name="csrf_token" value="<?= e(generarTokenCSRF()) ?>">
+                                                            <button type="submit" class="btn btn-sm btn-outline-success d-inline-flex align-items-center justify-content-center">Restaurar</button>
+                                                        </form>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                             </div>
                                         </td>
@@ -240,6 +280,65 @@ $nomUsu = $_SESSION['user_name'] ?? 'Usuario';
             </div>
         </div>
     </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('documentFiltersForm');
+            if (!form) return;
+
+            const buscarInput = document.getElementById('buscar_documento');
+            const categoriaSelect = document.getElementById('categoria_documento');
+            const rows = Array.from(document.querySelectorAll('[data-document-row]'));
+            const emptyState = document.getElementById('documentEmptyState');
+            let timer = null;
+
+            const normalize = (value) => (value ?? '').toString().trim().toLowerCase();
+
+            function applyFilters() {
+                const params = new URLSearchParams();
+                const buscar = normalize(buscarInput?.value ?? '');
+                const categoria = categoriaSelect?.value ?? '0';
+
+                if (buscar) params.set('buscar', buscar);
+                if (categoria && categoria !== '0') params.set('categoria', categoria);
+
+                const query = params.toString();
+                const url = `${window.location.pathname}${query ? `?${query}` : ''}`;
+                if (window.location.search !== (query ? `?${query}` : '')) {
+                    history.replaceState({}, '', url);
+                }
+
+                let visibleRows = 0;
+                rows.forEach((row) => {
+                    const rowText = `${normalize(row.dataset.titulo)} ${normalize(row.dataset.categoria)} ${normalize(row.dataset.id)}`;
+                    const matchesSearch = !buscar || rowText.includes(buscar);
+                    const matchesCategoria = categoria === '0' || row.dataset.categoriaId === categoria;
+                    const showRow = matchesSearch && matchesCategoria;
+
+                    row.hidden = !showRow;
+                    if (showRow) visibleRows += 1;
+                });
+
+                if (emptyState) {
+                    emptyState.hidden = visibleRows !== 0;
+                }
+            }
+
+            form.addEventListener('submit', (event) => {
+                event.preventDefault();
+                applyFilters();
+            });
+
+            buscarInput?.addEventListener('input', () => {
+                clearTimeout(timer);
+                timer = setTimeout(applyFilters, 250);
+            });
+
+            categoriaSelect?.addEventListener('change', applyFilters);
+
+            applyFilters();
+        });
+    </script>
 
     <?php if ($permCat): ?>
         <div class="modal fade modal-fullscreen-sm-down" id="crearCategoriaModal" tabindex="-1" aria-hidden="true">

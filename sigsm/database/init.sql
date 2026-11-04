@@ -7,6 +7,31 @@ CREATE DATABASE IF NOT EXISTS sigsm;
 
 USE sigsm;
 
+CREATE USER IF NOT EXISTS 'replica'@'%' IDENTIFIED BY 'replication_password';
+GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'replica'@'%';
+FLUSH PRIVILEGES;
+
+CREATE TABLE IF NOT EXISTS backup_configuracion (
+id_backup INT PRIMARY KEY AUTO_INCREMENT,
+nombre VARCHAR(100) NOT NULL UNIQUE,
+tipo VARCHAR(30) NOT NULL,
+destino VARCHAR(255) NOT NULL,
+activo TINYINT(1) DEFAULT 1,
+fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS replicacion_estado (
+id_estado INT PRIMARY KEY AUTO_INCREMENT,
+server_role VARCHAR(20) NOT NULL,
+master_host VARCHAR(255) DEFAULT NULL,
+last_sync DATETIME DEFAULT CURRENT_TIMESTAMP,
+status VARCHAR(20) DEFAULT 'healthy'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO replicacion_estado (server_role, master_host, status) VALUES
+('master', 'db_primary', 'healthy')
+ON DUPLICATE KEY UPDATE server_role = VALUES(server_role), master_host = VALUES(master_host), status = VALUES(status);
+
 CREATE TABLE rol (
 id_rol INT PRIMARY KEY AUTO_INCREMENT,
 nombre_rol VARCHAR(255) NOT NULL UNIQUE
@@ -37,6 +62,8 @@ id_usuario_carga INT,
 titulo VARCHAR(255) NOT NULL,
 url_archivo VARCHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
 fecha_carga DATETIME DEFAULT CURRENT_TIMESTAMP,
+eliminado TINYINT(1) DEFAULT 0,
+fecha_eliminacion DATETIME NULL,
 FOREIGN KEY (id_categoria) REFERENCES categoria_documento(id_categoria) ON DELETE RESTRICT,
 FOREIGN KEY (id_usuario_carga) REFERENCES usuario(id_usuario) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

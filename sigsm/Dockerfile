@@ -4,16 +4,41 @@ ENV APACHE_DOCUMENT_ROOT=/var/www/html \
     APP_FORCE_HTTPS=false \
     APP_ENV=development
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpng-dev \
-    libjpeg62-turbo-dev \
-    libfreetype6-dev \
-    default-mysql-client \
-    openssl \
-    && rm -rf /var/lib/apt/lists/* \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" gd pdo pdo_mysql \
-    && a2enmod rewrite headers alias expires deflate ssl
+RUN set -eux; \
+    if command -v dnf >/dev/null 2>&1; then \
+        dnf install -y --setopt=install_weak_deps=0 \
+            libpng-devel \
+            libjpeg-turbo-devel \
+            freetype-devel \
+            mariadb \
+            openssl \
+            sqlite-devel \
+            cronie \
+            && dnf clean all; \
+    elif command -v yum >/dev/null 2>&1; then \
+        yum install -y \
+            libpng-devel \
+            libjpeg-turbo-devel \
+            freetype-devel \
+            mariadb \
+            openssl \
+            sqlite-devel \
+            cronie \
+            && yum clean all; \
+    else \
+        apt-get update && apt-get install -y --no-install-recommends \
+            libpng-dev \
+            libjpeg62-turbo-dev \
+            libfreetype6-dev \
+            default-mysql-client \
+            libsqlite3-dev \
+            openssl \
+            cron \
+            && rm -rf /var/lib/apt/lists/*; \
+    fi; \
+    docker-php-ext-configure gd --with-freetype --with-jpeg; \
+    docker-php-ext-install -j"$(nproc)" gd pdo pdo_mysql pdo_sqlite; \
+    a2enmod rewrite headers alias expires deflate ssl
 
 RUN sed -ri 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
     && sed -ri 's!DocumentRoot /var/www/html!DocumentRoot ${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/000-default.conf \
@@ -44,7 +69,9 @@ RUN printf '%s\n' '<?php' 'header("Location: /sigsm/");' 'exit;' '?>' > /var/www
     /var/www/html/sigsm
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+COPY backup_task.sh /usr/local/bin/sigsm-backup.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/sigsm-backup.sh \
+    && (crontab -l 2>/dev/null; echo "0 2 * * * /usr/local/bin/sigsm-backup.sh >> /var/log/sigsm_backups.log 2>&1") | crontab -
 
 EXPOSE 80 443
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

@@ -21,6 +21,7 @@ class Documento {
             LEFT JOIN categoria_documento c ON d.id_categoria = c.id_categoria
             LEFT JOIN usuario u ON d.id_usuario_carga = u.id_usuario
             WHERE DATE(d.fecha_carga) = CURDATE()
+              AND d.eliminado = 0
             ORDER BY d.fecha_carga DESC
         ';
         $prep = $this->conexion->prepare($sql);
@@ -33,6 +34,7 @@ class Documento {
             SELECT d.id_documento, d.titulo, d.url_archivo, d.fecha_carga, c.nombre AS categoria
             FROM documento d
             LEFT JOIN categoria_documento c ON d.id_categoria = c.id_categoria
+            WHERE d.eliminado = 0
             ORDER BY d.fecha_carga DESC
             LIMIT :limit
         ';
@@ -42,14 +44,41 @@ class Documento {
         return $prep->fetchAll();
     }
 
-    public function listar() {
+    public function listar($busqueda = '', $estado = 'activos', $categoriaId = 0, $permiteEliminados = false) {
         $sql = '
-            SELECT d.id_documento, d.titulo, d.url_archivo, d.fecha_carga, d.id_categoria, c.nombre AS categoria
+            SELECT d.id_documento, d.titulo, d.url_archivo, d.fecha_carga, d.id_categoria, d.eliminado, c.nombre AS categoria
             FROM documento d
             LEFT JOIN categoria_documento c ON d.id_categoria = c.id_categoria
-            ORDER BY d.fecha_carga DESC
+            WHERE 1 = 1
         ';
+        $params = [];
+
+        $busqueda = trim((string)$busqueda);
+        if ($busqueda !== '') {
+            $sql .= ' AND (LOWER(COALESCE(d.titulo, "")) LIKE LOWER(:buscar) OR LOWER(COALESCE(c.nombre, "")) LIKE LOWER(:buscar) OR CAST(d.id_documento AS CHAR) LIKE :buscar)';
+            $params[':buscar'] = '%' . $busqueda . '%';
+        }
+
+        if ((int)$categoriaId > 0) {
+            $sql .= ' AND d.id_categoria = :id_categoria';
+            $params[':id_categoria'] = (int)$categoriaId;
+        }
+
+        if (!$permiteEliminados) {
+            $sql .= ' AND d.eliminado = 0';
+        } elseif ($estado === 'activos') {
+            $sql .= ' AND d.eliminado = 0';
+        } elseif ($estado === 'eliminados') {
+            // Se cargan todos los registros cuando el usuario tiene permiso para ver eliminados,
+            // para que el filtro en vivo pueda mostrar/ocultar activos y eliminados sin perder filas.
+        }
+
+        $sql .= ' ORDER BY d.eliminado ASC, d.fecha_carga DESC';
+
         $prep = $this->conexion->prepare($sql);
+        foreach ($params as $clave => $valor) {
+            $prep->bindValue($clave, $valor, is_int($valor) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
         $prep->execute();
         return $prep->fetchAll();
     }
@@ -62,7 +91,7 @@ class Documento {
     }
 
     public function contarDocumentosPorCategoria($catId) {
-        $sql = 'SELECT COUNT(*) as total FROM documento WHERE id_categoria = :id';
+        $sql = 'SELECT COUNT(*) as total FROM documento WHERE id_categoria = :id AND eliminado = 0';
         $prep = $this->conexion->prepare($sql);
         $prep->bindParam(':id', $catId, PDO::PARAM_INT);
         $prep->execute();
@@ -93,7 +122,14 @@ class Documento {
     }
 
     public function eliminar() {
-        $sql = 'DELETE FROM documento WHERE id_documento = :id';
+        $sql = 'UPDATE documento SET eliminado = 1, fecha_eliminacion = NOW() WHERE id_documento = :id';
+        $prep = $this->conexion->prepare($sql);
+        $prep->bindParam(':id', $this->docId, PDO::PARAM_INT);
+        return $prep->execute();
+    }
+
+    public function restaurar() {
+        $sql = 'UPDATE documento SET eliminado = 0, fecha_eliminacion = NULL WHERE id_documento = :id';
         $prep = $this->conexion->prepare($sql);
         $prep->bindParam(':id', $this->docId, PDO::PARAM_INT);
         return $prep->execute();

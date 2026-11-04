@@ -10,6 +10,42 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
+function detectarMimeArchivo($rutaArchivo) {
+    if (!is_string($rutaArchivo) || $rutaArchivo === '') {
+        return 'application/octet-stream';
+    }
+
+    if (class_exists('finfo')) {
+        $infoMime = @finfo_open(FILEINFO_MIME_TYPE);
+        if ($infoMime !== false) {
+            $tipo = @finfo_file($infoMime, $rutaArchivo);
+            @finfo_close($infoMime);
+            if (is_string($tipo) && $tipo !== '') {
+                return $tipo;
+            }
+        }
+    }
+
+    if (function_exists('mime_content_type')) {
+        $tipo = @mime_content_type($rutaArchivo);
+        if (is_string($tipo) && $tipo !== '') {
+            return $tipo;
+        }
+    }
+
+    $ext = strtolower(pathinfo($rutaArchivo, PATHINFO_EXTENSION));
+    $mapa = [
+        'pdf' => 'application/pdf',
+        'png' => 'image/png',
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'gif' => 'image/gif',
+        'webp' => 'image/webp',
+    ];
+
+    return $mapa[$ext] ?? 'application/octet-stream';
+}
+
 $op = $_POST['accion'] ?? '';
 $tokenForm = $_POST['csrf_token'] ?? '';
 
@@ -38,11 +74,10 @@ if ($op === 'crear') {
         exit();
     }
     
-    $infoMime = new finfo(FILEINFO_MIME_TYPE);
-    $tipoMime = $infoMime->file($fichero['tmp_name']);
+    $tipoMime = detectarMimeArchivo($fichero['tmp_name']);
     $mimes = ['application/pdf', 'image/jpeg', 'image/png'];
     
-    if (!in_array($tipoMime, $mimes, true)) {
+    if (!in_array(strtolower($tipoMime), $mimes, true)) {
         header('Location: /sigsm/views/documentos.php?msg=error_tipo');
         exit();
     }
@@ -103,24 +138,30 @@ if ($op === 'eliminar') {
     if (!tienePermiso('eliminar_documentos')) die("Acceso denegado.");
     
     $clave = (int)($_POST['id_documento'] ?? 0);
-    
-    $prep = $bd->prepare('SELECT url_archivo FROM documento WHERE id_documento = :id');
-    $prep->bindParam(':id', $clave, PDO::PARAM_INT);
-    $prep->execute();
-    $docFila = $prep->fetch(PDO::FETCH_ASSOC);
-    
     $modDoc->docId = $clave;
     
     if ($clave > 0 && $modDoc->eliminar()) {
-        if ($docFila && !empty($docFila['url_archivo'])) {
-            $rutaFichero = __DIR__ . '/../uploads/' . $docFila['url_archivo'];
-            if (file_exists($rutaFichero)) unlink($rutaFichero);
-        }
         $mensaje = 'eliminado';
     } else {
         $mensaje = 'error';
     }
     
+    header('Location: /sigsm/views/documentos.php?msg=' . $mensaje);
+    exit();
+}
+
+if ($op === 'restaurar') {
+    if (!tienePermiso('eliminar_documentos')) die("Acceso denegado.");
+
+    $clave = (int)($_POST['id_documento'] ?? 0);
+    $modDoc->docId = $clave;
+
+    if ($clave > 0 && $modDoc->restaurar()) {
+        $mensaje = 'restaurado';
+    } else {
+        $mensaje = 'error';
+    }
+
     header('Location: /sigsm/views/documentos.php?msg=' . $mensaje);
     exit();
 }

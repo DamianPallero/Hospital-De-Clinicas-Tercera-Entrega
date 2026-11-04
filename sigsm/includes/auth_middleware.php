@@ -111,6 +111,7 @@ function obtenerPermisosPorRol($rolNom) {
             'ver_vehiculos', 'gestionar_vehiculos',
             'gestionar_usuarios',
             'gestionar_categorias',
+            'gestionar_backups',
         ],
         'Enfermería' => [
             'ver_documentos', 'cargar_documentos',
@@ -126,6 +127,7 @@ function obtenerPermisosPorRol($rolNom) {
             'ver_documentos',
             'ver_encuestas', 'gestionar_encuestas', 'ver_respuestas_encuestas', 'gestionar_categorias',
             'ver_traslados', 'actualizar_estado_traslado', 'ver_vehiculos', 'gestionar_vehiculos',
+            'gestionar_backups',
         ],
         'Transporte' => [
             'ver_traslados', 'actualizar_estado_traslado', 'ver_vehiculos', 'gestionar_vehiculos',
@@ -144,6 +146,20 @@ function tienePermiso($permiso) {
 
 function obtenerRol() {
     return $_SESSION['role_name'] ?? 'Invitado';
+}
+
+if (!function_exists('puedeGestionarBackups')) {
+    function puedeGestionarBackups(): bool {
+        $rol = obtenerRol();
+        return in_array($rol, ['Administrador General', 'IT'], true);
+    }
+}
+
+if (!function_exists('puedeVerDocumentosEliminados')) {
+    function puedeVerDocumentosEliminados(): bool {
+        $rol = obtenerRol();
+        return in_array($rol, ['Administrador General', 'IT'], true);
+    }
 }
 
 if (!function_exists('obtenerIntentosLogin')) {

@@ -2,6 +2,42 @@
 require_once __DIR__ . '/includes/auth_middleware.php';
 require_once __DIR__ . '/config/Database.php';
 
+function detectarMimeArchivo($rutaArchivo) {
+    if (!is_string($rutaArchivo) || $rutaArchivo === '') {
+        return 'application/octet-stream';
+    }
+
+    if (class_exists('finfo')) {
+        $infoMime = @finfo_open(FILEINFO_MIME_TYPE);
+        if ($infoMime !== false) {
+            $tipo = @finfo_file($infoMime, $rutaArchivo);
+            @finfo_close($infoMime);
+            if (is_string($tipo) && $tipo !== '') {
+                return $tipo;
+            }
+        }
+    }
+
+    if (function_exists('mime_content_type')) {
+        $tipo = @mime_content_type($rutaArchivo);
+        if (is_string($tipo) && $tipo !== '') {
+            return $tipo;
+        }
+    }
+
+    $ext = strtolower(pathinfo($rutaArchivo, PATHINFO_EXTENSION));
+    $mapa = [
+        'pdf' => 'application/pdf',
+        'png' => 'image/png',
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'gif' => 'image/gif',
+        'webp' => 'image/webp',
+    ];
+
+    return $mapa[$ext] ?? 'application/octet-stream';
+}
+
 requerirAutenticacion();
 
 if (!tienePermiso('ver_documentos')) {
@@ -15,9 +51,15 @@ if ($clave <= 0) {
     exit('ID inválido.');
 }
 
+$permiteVerEliminados = puedeVerDocumentosEliminados();
+
 try {
     $bd = (new Database())->getConnection();
-    $prep = $bd->prepare('SELECT url_archivo, titulo FROM documento WHERE id_documento = :id');
+    $sql = 'SELECT url_archivo, titulo, eliminado FROM documento WHERE id_documento = :id';
+    if (!$permiteVerEliminados) {
+        $sql .= ' AND eliminado = 0';
+    }
+    $prep = $bd->prepare($sql);
     $prep->bindParam(':id', $clave, PDO::PARAM_INT);
     $prep->execute();
     $docFila = $prep->fetch(PDO::FETCH_ASSOC);
@@ -27,22 +69,38 @@ try {
         exit('Documento no encontrado.');
     }
 
-    $sello = $docFila['url_archivo'];
-    
-    if (!preg_match('/^[a-f0-9]{32}$/i', $sello)) {
-        http_response_code(400);
-        exit('Hash de archivo inválido.');
+    if (!$permiteVerEliminados && (int)($docFila['eliminado'] ?? 0) === 1) {
+        http_response_code(404);
+        exit('Documento no encontrado.');
     }
 
-    $rutaFichero = __DIR__ . '/uploads/' . $sello;
+    $sello = trim((string)($docFila['url_archivo'] ?? ''));
+    $rutaFichero = null;
+    $rutaBase = __DIR__ . '/uploads';
+    $candidatos = [];
 
-    if (!file_exists($rutaFichero)) {
+    if ($sello !== '') {
+        $rutaSimple = preg_replace('/[^A-Za-z0-9._-]+/', '', basename(parse_url($sello, PHP_URL_PATH) ?: $sello));
+        $candidatos[] = $rutaBase . '/' . $sello;
+        $candidatos[] = $rutaBase . '/' . $rutaSimple;
+        if (preg_match('/^[a-f0-9]{32}$/i', $sello)) {
+            $candidatos[] = $rutaBase . '/' . strtolower($sello);
+        }
+    }
+
+    foreach (array_unique(array_values($candidatos)) as $posibleRuta) {
+        if (is_readable($posibleRuta) && !is_dir($posibleRuta)) {
+            $rutaFichero = $posibleRuta;
+            break;
+        }
+    }
+
+    if ($rutaFichero === null || !is_readable($rutaFichero)) {
         http_response_code(404);
         exit('Archivo físico no encontrado en el servidor.');
     }
 
-    $infoMime = new finfo(FILEINFO_MIME_TYPE);
-    $tipoMime = $infoMime->file($rutaFichero);
+    $tipoMime = detectarMimeArchivo($rutaFichero);
     $tituloArchivo = preg_replace('/[\r\n]+/', '', trim((string)$docFila['titulo']));
     $tituloArchivo = preg_replace('/[<>:"\\\/|?*]/', '', $tituloArchivo);
     $tituloArchivo = substr($tituloArchivo, 0, 120) ?: 'documento';
